@@ -2,191 +2,109 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { GameState, TetrominoShape, TetrominoType } from "./types";
+import {
+  COLORS,
+  DROP_TIME_INITIAL,
+  GRID_HEIGHT,
+  GRID_WIDTH,
+  INITIAL_STATE,
+  SHAPES,
+  TETROMINOS,
+} from "./constants";
 
-// テトリミノの形状と色の型定義
-type TetrominoShape = (string | number)[][];
-type TetrominoColor = string;
-
-interface Tetromino {
-  shape: TetrominoShape;
-  color: TetrominoColor;
-}
-
-type TetrominoTypes = "0" | "I" | "J" | "L" | "O" | "S" | "T" | "Z";
-
-// テトリミノの形状
-const TETROMINOS: Record<TetrominoTypes, Tetromino> = {
-  "0": { shape: [[0]], color: "0, 0, 0" },
-  I: {
-    shape: [
-      [0, "I", 0, 0],
-      [0, "I", 0, 0],
-      [0, "I", 0, 0],
-      [0, "I", 0, 0],
-    ],
-    color: "80, 227, 230",
-  },
-  J: {
-    shape: [
-      [0, "J", 0],
-      [0, "J", 0],
-      ["J", "J", 0],
-    ],
-    color: "36, 95, 223",
-  },
-  L: {
-    shape: [
-      [0, "L", 0],
-      [0, "L", 0],
-      [0, "L", "L"],
-    ],
-    color: "223, 173, 36",
-  },
-  O: {
-    shape: [
-      ["O", "O"],
-      ["O", "O"],
-    ],
-    color: "223, 217, 36",
-  },
-  S: {
-    shape: [
-      [0, "S", "S"],
-      ["S", "S", 0],
-      [0, 0, 0],
-    ],
-    color: "48, 211, 56",
-  },
-  T: {
-    shape: [
-      [0, 0, 0],
-      ["T", "T", "T"],
-      [0, "T", 0],
-    ],
-    color: "132, 61, 198",
-  },
-  Z: {
-    shape: [
-      ["Z", "Z", 0],
-      [0, "Z", "Z"],
-      [0, 0, 0],
-    ],
-    color: "227, 78, 78",
-  },
-};
-
-// ゲームの状態の型定義
-interface GameState {
-  grid: number[][];
-  position: { x: number; y: number };
-  tetromino: Tetromino;
-  nextTetromino: Tetromino;
-  score: number;
-  level: number;
-  lines: number;
-  gameOver: boolean;
-}
-
-// ゲームの初期状態
-const initialState: GameState = {
-  grid: Array.from({ length: 20 }, () => Array(10).fill(0)),
-  position: { x: 0, y: 0 },
-  tetromino: TETROMINOS["0"],
-  nextTetromino: TETROMINOS["0"],
-  score: 0,
-  level: 1,
-  lines: 0,
-  gameOver: false,
-};
-
-export default function Component() {
-  const [gameState, setGameState] = useState<GameState>(initialState);
+export default function Tetris() {
+  const [grid, setGrid] = useState<GameState["grid"]>(INITIAL_STATE.grid);
+  const [position, setPosition] = useState<{ x: number; y: number }>(
+    INITIAL_STATE.position
+  );
+  const [tetromino, setTetromino] = useState<GameState["tetromino"]>(
+    INITIAL_STATE.tetromino
+  );
+  const [nextTetromino, setNextTetromino] = useState<
+    GameState["nextTetromino"]
+  >(INITIAL_STATE.nextTetromino);
+  const [score, setScore] = useState<number>(INITIAL_STATE.score);
+  const [level, setLevel] = useState<number>(INITIAL_STATE.level);
+  const [lines, setLines] = useState<number>(INITIAL_STATE.lines);
+  const [gameOver, setGameOver] = useState<boolean>(INITIAL_STATE.gameOver);
   const [dropTime, setDropTime] = useState<number | null>(null);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
 
   // 新しいテトリミノを生成
-  const newTetromino = useCallback((): Tetromino => {
-    const tetrominos = "IJLOSTZ" as const;
-    const randTetromino =
-      tetrominos[Math.floor(Math.random() * tetrominos.length)];
-    return TETROMINOS[randTetromino];
+  const generateTetromino = useCallback((): TetrominoType => {
+    return TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
   }, []);
 
   // ゲームの初期化
   const startGame = useCallback(() => {
-    setGameState({
-      ...initialState,
-      tetromino: newTetromino(),
-      nextTetromino: newTetromino(),
+    setGrid(
+      Array.from({ length: GRID_HEIGHT }, () => Array(GRID_WIDTH).fill(0))
+    );
+    const initialTetromino = generateTetromino();
+    setTetromino({
+      type: initialTetromino,
+      shape: SHAPES[initialTetromino],
     });
-    setDropTime(1000);
+    setNextTetromino(generateTetromino());
+    setPosition({ x: 3, y: 0 });
+    setScore(0);
+    setLevel(1);
+    setLines(0);
+    setGameOver(false);
+    setDropTime(DROP_TIME_INITIAL);
     setGameStarted(true);
-  }, [newTetromino]);
+  }, [generateTetromino]);
 
   // テトリミノの移動
   const moveTetromino = useCallback(
     (x: number, y: number) => {
       if (
-        !checkCollision(
-          gameState.grid,
-          gameState.position,
-          gameState.tetromino,
-          { x, y }
-        )
+        tetromino &&
+        !checkCollision(grid, position, tetromino.shape, { x, y })
       ) {
-        setGameState((prev) => ({
-          ...prev,
-          position: {
-            x: prev.position.x + x,
-            y: prev.position.y + y,
-          },
+        setPosition((prev) => ({
+          x: prev.x + x,
+          y: prev.y + y,
         }));
       }
     },
-    [gameState.grid, gameState.position, gameState.tetromino]
+    [grid, position, tetromino]
   );
 
   // テトリミノの回転
   const rotateTetromino = useCallback(() => {
-    const rotated = gameState.tetromino.shape
-      .map((_, index) => gameState.tetromino.shape.map((col) => col[index]))
-      .reverse();
+    if (!tetromino) return;
 
-    if (
-      !checkCollision(
-        gameState.grid,
-        gameState.position,
-        { ...gameState.tetromino, shape: rotated },
-        { x: 0, y: 0 }
-      )
-    ) {
-      setGameState((prev) => ({
-        ...prev,
-        tetromino: {
-          ...prev.tetromino,
-          shape: rotated,
-        },
+    const rotated = tetromino.shape
+      .map((_, index) => tetromino.shape.map((col) => col[index]))
+      .map((row) => row.reverse());
+
+    if (!checkCollision(grid, position, rotated, { x: 0, y: 0 })) {
+      setTetromino((prev) => ({
+        ...(prev || tetromino),
+        shape: rotated,
       }));
     }
-  }, [gameState.grid, gameState.position, gameState.tetromino]);
+  }, [grid, position, tetromino]);
 
   // 衝突チェック
   const checkCollision = (
-    grid: number[][],
+    grid: GameState["grid"],
     position: { x: number; y: number },
-    tetromino: Tetromino,
+    shape: TetrominoShape,
     movement: { x: number; y: number }
   ): boolean => {
-    for (let y = 0; y < tetromino.shape.length; y++) {
-      for (let x = 0; x < tetromino.shape[y].length; x++) {
-        if (tetromino.shape[y][x] !== 0) {
+    for (let y = 0; y < shape.length; y++) {
+      for (let x = 0; x < shape[y].length; x++) {
+        if (shape[y][x]) {
           const newX = x + position.x + movement.x;
           const newY = y + position.y + movement.y;
           if (
             newX < 0 ||
-            newX >= grid[0].length ||
-            newY >= grid.length ||
-            grid[newY][newX] !== 0
+            newX >= GRID_WIDTH ||
+            newY >= GRID_HEIGHT ||
+            grid[newY]?.[newX]
           ) {
             return true;
           }
@@ -198,12 +116,11 @@ export default function Component() {
 
   // テトリミノを固定し、新しいテトリミノを生成
   const lockTetromino = useCallback(() => {
-    const newGrid = gameState.grid.map((row) => [...row]);
-    gameState.tetromino.shape.forEach((row, y) => {
+    const newGrid = grid.map((row) => [...row]);
+    tetromino?.shape.forEach((row, y) => {
       row.forEach((value, x) => {
-        if (value !== 0) {
-          newGrid[y + gameState.position.y][x + gameState.position.x] =
-            value as number;
+        if (value) {
+          newGrid[y + position.y][x + position.x] = tetromino.type;
         }
       });
     });
@@ -211,41 +128,53 @@ export default function Component() {
     // ラインの消去とスコア計算
     let linesCleared = 0;
     for (let y = newGrid.length - 1; y >= 0; ) {
-      if (newGrid[y].every((cell) => cell !== 0)) {
+      if (newGrid[y].every((cell) => cell)) {
         newGrid.splice(y, 1);
-        newGrid.unshift(Array(10).fill(0));
+        newGrid.unshift(Array(GRID_WIDTH).fill(0));
         linesCleared++;
       } else {
         y--;
       }
     }
 
-    const newScore = gameState.score + linesCleared * 100 * gameState.level;
-    const newLines = gameState.lines + linesCleared;
+    const newTetromino = nextTetromino && {
+      type: nextTetromino,
+      shape: SHAPES[nextTetromino],
+    };
+    const newScore = score + linesCleared * 100 * level;
+    const newLines = lines + linesCleared;
     const newLevel = Math.floor(newLines / 10) + 1;
 
-    setGameState((prev) => ({
-      ...prev,
-      grid: newGrid,
-      position: { x: 3, y: 0 },
-      tetromino: prev.nextTetromino,
-      nextTetromino: newTetromino(),
-      score: newScore,
-      lines: newLines,
-      level: newLevel,
-      gameOver: checkCollision(newGrid, { x: 3, y: 0 }, prev.nextTetromino, {
-        x: 0,
-        y: 0,
-      }),
-    }));
-
-    setDropTime(1000 / newLevel);
-  }, [gameState, newTetromino]);
+    setGrid(newGrid);
+    setPosition({ x: 3, y: 0 });
+    setTetromino(newTetromino);
+    setNextTetromino(generateTetromino());
+    setScore(newScore);
+    setLines(newLines);
+    setLevel(newLevel);
+    setGameOver(
+      !!newTetromino &&
+        checkCollision(newGrid, { x: 3, y: 0 }, newTetromino.shape, {
+          x: 0,
+          y: 0,
+        })
+    );
+    setDropTime(DROP_TIME_INITIAL / newLevel);
+  }, [
+    grid,
+    position,
+    tetromino,
+    nextTetromino,
+    generateTetromino,
+    score,
+    lines,
+    level,
+  ]);
 
   // キーボード入力の処理
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      if (!gameState.gameOver && gameStarted) {
+      if (!gameOver && gameStarted) {
         switch (event.key) {
           case "ArrowLeft":
             moveTetromino(-1, 0);
@@ -262,20 +191,16 @@ export default function Component() {
         }
       }
     },
-    [gameState.gameOver, gameStarted, moveTetromino, rotateTetromino]
+    [gameOver, gameStarted, moveTetromino, rotateTetromino]
   );
 
   // テトリミノの自動落下
   useEffect(() => {
-    if (!gameState.gameOver && gameStarted && dropTime) {
+    if (!gameOver && gameStarted && dropTime) {
       const dropTetromino = () => {
         if (
-          !checkCollision(
-            gameState.grid,
-            gameState.position,
-            gameState.tetromino,
-            { x: 0, y: 1 }
-          )
+          tetromino &&
+          !checkCollision(grid, position, tetromino.shape, { x: 0, y: 1 })
         ) {
           moveTetromino(0, 1);
         } else {
@@ -286,7 +211,16 @@ export default function Component() {
       const dropTimer = setInterval(dropTetromino, dropTime);
       return () => clearInterval(dropTimer);
     }
-  }, [gameState, dropTime, gameStarted, moveTetromino, lockTetromino]);
+  }, [
+    dropTime,
+    gameStarted,
+    moveTetromino,
+    lockTetromino,
+    gameOver,
+    grid,
+    position,
+    tetromino,
+  ]);
 
   // キーボードイベントリスナーの設定
   useEffect(() => {
@@ -296,17 +230,14 @@ export default function Component() {
 
   // ゲームボードの描画
   const renderGrid = () => {
-    return gameState.grid.map((row, y) =>
+    return grid.map((row, y) =>
       row.map((cell, x) => {
         const tetrominoCell =
-          gameState.tetromino.shape[y - gameState.position.y]?.[
-            x - gameState.position.x
-          ];
-        const color = tetrominoCell
-          ? gameState.tetromino.color
-          : cell
-          ? TETROMINOS[cell as TetrominoTypes].color
-          : "0, 0, 0";
+          tetromino?.shape[y - position.y]?.[x - position.x];
+        const color =
+          (tetrominoCell && COLORS[tetromino.type]) ||
+          (cell && COLORS[cell]) ||
+          "0, 0, 0";
         return (
           <div
             key={`${y}-${x}`}
@@ -326,17 +257,18 @@ export default function Component() {
 
   // 次のテトリミノの描画
   const renderNextTetromino = () => {
-    return gameState.nextTetromino.shape.map((row, y) =>
-      row.map((cell, x) => (
+    return [...Array(4)].map((_, y) =>
+      [...Array(4)].map((_, x) => (
         <div
           key={`next-${y}-${x}`}
           style={{
-            width: "20px",
-            height: "20px",
-            backgroundColor: cell
-              ? `rgba(${gameState.nextTetromino.color}, 1)`
-              : "transparent",
-            border: cell ? "1px solid rgba(255, 255, 255, 0.1)" : "none",
+            backgroundColor:
+              nextTetromino && SHAPES[nextTetromino]?.[y]?.[x]
+                ? `rgba(${COLORS[nextTetromino]}, 1)`
+                : "transparent",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            gridColumn: x + 1,
+            gridRow: y + 1,
           }}
         />
       ))
@@ -353,18 +285,24 @@ export default function Component() {
         <div className="ml-4">
           <div className="mb-4">
             <h2 className="text-xl font-semibold mb-2">Next</h2>
-            <div className="grid grid-cols-4 gap-0">
+            <div
+              className="grid gap-0"
+              style={{
+                gridTemplateColumns: "repeat(4, 20px)",
+                gridTemplateRows: "repeat(4, 20px)",
+              }}
+            >
               {renderNextTetromino()}
             </div>
           </div>
           <div className="mb-4">
-            <p>Score: {gameState.score}</p>
-            <p>Level: {gameState.level}</p>
-            <p>Lines: {gameState.lines}</p>
+            <p>Score: {score}</p>
+            <p>Level: {level}</p>
+            <p>Lines: {lines}</p>
           </div>
           {!gameStarted ? (
             <Button onClick={startGame}>Start Game</Button>
-          ) : gameState.gameOver ? (
+          ) : gameOver ? (
             <div>
               <p className="text-xl font-semibold mb-2">Game Over</p>
               <Button onClick={startGame}>Restart</Button>
