@@ -276,7 +276,7 @@ export default function Tetris() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
+    <div className="flex flex-col items-center justify-center min-h-screen">
       <h1 className="text-4xl font-bold mb-4">Tetris</h1>
       <div className="flex">
         <div className="grid grid-cols-10 gap-0 border-2 border-gray-700">
